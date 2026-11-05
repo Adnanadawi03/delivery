@@ -81,10 +81,10 @@ input{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);border-rad
 
   <div id="cos"></div>
   <div class="card"><b>الأوردرات</b><div id="list"></div></div>
-  <div class="sub" style="text-align:center;margin:14px 0">المنتخب: توصيل ٢ بدون رسوم، ٣ رسوم ٠.٢٥، أكثر رسوم ٠.٥٠ · غزة: ١٠٪ من التوصيل</div>
+  <div class="sub" style="text-align:center;margin:14px 0">المنتخب: توصيل ٢ بدون رسوم، ٣ رسوم ٠.٢٥، أكثر رسوم ٠.٥٠ · غزة: ١٠٪ من التوصيل · رسوم أسبوعية: المنتخب ٠.٧٥، غزة ٠.٦٠</div>
 </main>
 <script>
-var NAMES={m:'المنتخب',g:'غزة'};
+var NAMES={m:'المنتخب',g:'غزة'};var WF={m:0.75,g:0.60};
 var S={orders:[],paid:{},incl:false};
 try{var r=localStorage.getItem('dlv1');if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 var DB=null;
@@ -128,13 +128,14 @@ function render(){
   os.forEach(function(o){var x=T[o.c];x.n++;x.fee+=o.f;x.com+=comm(o.c,o.f,o.nc);x.pay+=o.p});
   var total=0,cnt=os.length,html='<div class="sum">';
   ['m','g'].forEach(function(c){
-    var x=T[c],mine=x.fee-x.com,owe=x.com,key=c+'_'+end,pd=!!S.paid[key];
+    var x=T[c],wf=x.n?WF[c]:0,mine=x.fee-x.com-wf,owe=x.com+wf,key=c+'_'+end,pd=!!S.paid[key];
     total+=mine;
     html+='<div class="card co"><h3>'+NAMES[c]+' <span class="k">('+x.n+' أوردر)</span></h3>'+
     '<div class="k">'+(pd?'تم تحويله ✓':'لازم أدفع')+'</div><div class="big" style="color:'+(pd?'var(--grn)':'var(--red)')+'">'+f2(owe)+'</div>'+
     '<div class="line"><span>إجمالي التوصيل</span><b>'+f2(x.fee)+'</b></div>'+
     '<div class="line"><span>الرسوم</span><b>'+f2(x.com)+'</b></div>'+
-    '<div class="line"><span>ربحي</span><b style="color:var(--grn)">'+f2(mine)+'</b></div>'+
+    '<div class="line"><span>رسوم أسبوعية</span><b>'+f2(wf)+'</b></div>'+
+    '<div class="line"><span>صافي ربحي</span><b style="color:var(--grn)">'+f2(mine)+'</b></div>'+
     '<div class="line"><span>مجموع الدفع</span><b>'+f2(x.pay)+'</b></div>'+
     '<button class="paid'+(pd?' on':'')+'" data-k="'+key+'">'+(pd?'✓ تم تحويل المبلغ':'حولت المبلغ للشركة')+'</button></div>';
   });
