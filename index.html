@@ -68,6 +68,7 @@ input{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);border-rad
       <div><label>سعر التوصيل</label><input id="fee" type="number" inputmode="decimal" step="0.05" min="0"></div>
       <div><label>سعر الدفع (الطلب)</label><input id="pay" type="number" inputmode="decimal" step="0.05" min="0"></div>
     </div>
+    <label>الأسبوع</label><div class="seg" id="wk"><button data-w="0" class="on">هذا الأسبوع</button><button data-w="-1">الأسبوع الماضي</button></div>
     <div id="pv" class="k" style="margin-top:8px"></div>
     <label class="chk"><input type="checkbox" id="nc"> بدون عمولة (لهذا الأوردر)</label>
     
@@ -88,13 +89,15 @@ var S={orders:[],paid:{},incl:false};
 try{var r=localStorage.getItem('dlv1');if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 var DB=null;
 function save(){try{localStorage.setItem('dlv1',JSON.stringify(S))}catch(e){}if(DB){try{DB.set({orders:S.orders,paid:S.paid}).catch(function(){})}catch(e){}}}
-var co='m';var editId=null;
+var co='m';var editId=null,editT=null,wk=0;
 function setCo(c){co=c;document.querySelectorAll('#seg button').forEach(function(x){x.classList.toggle('on',x.dataset.c===c)})}
 function setBtn(){$('add').textContent=editId?'حفظ التعديل':'إضافة الأوردر';$('cancel').style.display=editId?'block':'none'}
 function comm(c,f,nc){if(nc)return 0;if(c==='g')return f*0.10;if(f<=2)return 0;if(f<=3)return 0.25;return 0.5}
 function wEnd(t){var d=new Date(t),c=new Date(d);c.setHours(23,0,0,0);c.setDate(c.getDate()+((4-d.getDay())+7)%7);if(c<d)c.setDate(c.getDate()+7);return c.getTime()}
 var cur=wEnd(Date.now());
 function shift(k,n){var d=new Date(k);d.setDate(d.getDate()+n*7);return d.getTime()}
+function setWk(w){wk=w;document.querySelectorAll('#wk button').forEach(function(x){x.classList.toggle('on',x.dataset.w===String(w))})}
+function setDt(){if(editId)return;setWk(cur<wEnd(Date.now())?-1:0)}
 function f2(n){return (Math.round(n*100)/100).toFixed(2)}
 function fd(t){return new Date(t).toLocaleDateString('ar',{weekday:'long',day:'numeric',month:'numeric'})}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -107,13 +110,14 @@ $('fee').oninput=preview;$('nc').onchange=preview;
 $('add').onclick=function(){
   var f=parseFloat($('fee').value),p=parseFloat($('pay').value);
   if(isNaN(f)){$('fee').focus();return}
-  if(isNaN(p))p=0;
-  if(editId){var eo=S.orders.filter(function(x){return x.id===editId})[0];if(eo){eo.c=co;eo.pu=$('pu').value.trim();eo.dr=$('dr').value.trim();eo.f=f;eo.p=p;eo.nc=$('nc').checked}}else S.orders.push({id:Date.now(),c:co,pu:$('pu').value.trim(),dr:$('dr').value.trim(),f:f,p:p,nc:$('nc').checked,t:Date.now()});
-  save();$('pu').value='';$('dr').value='';$('fee').value='';$('pay').value='';$('nc').checked=false;preview();if(editId){editId=null;setBtn()}else cur=wEnd(Date.now());render();
+  if(isNaN(p))p=0;var tt=Date.now();if(wk===-1){var td=new Date(tt);td.setDate(td.getDate()-7);tt=td.getTime()}else if(wk===null&&editT)tt=editT;if(editId&&editT&&wEnd(editT)===wEnd(tt))tt=editT;
+  if(editId){var eo=S.orders.filter(function(x){return x.id===editId})[0];if(eo){eo.c=co;eo.pu=$('pu').value.trim();eo.dr=$('dr').value.trim();eo.f=f;eo.p=p;eo.nc=$('nc').checked;eo.t=tt}}else S.orders.push({id:Date.now(),c:co,pu:$('pu').value.trim(),dr:$('dr').value.trim(),f:f,p:p,nc:$('nc').checked,t:tt});
+  save();$('pu').value='';$('dr').value='';$('fee').value='';$('pay').value='';$('nc').checked=false;preview();if(editId){editId=null;setBtn()}cur=wEnd(tt);setDt();render();
 };
-$('cancel').onclick=function(){editId=null;$('pu').value='';$('dr').value='';$('fee').value='';$('pay').value='';$('nc').checked=false;preview();setBtn()};
-$('prev').onclick=function(){cur=shift(cur,-1);render()};
-$('next').onclick=function(){cur=shift(cur,1);render()};
+document.querySelectorAll('#wk button').forEach(function(b){b.onclick=function(){setWk(parseInt(b.dataset.w,10))}});
+$('cancel').onclick=function(){editId=null;$('pu').value='';$('dr').value='';$('fee').value='';$('pay').value='';$('nc').checked=false;preview();setBtn();setDt()};
+$('prev').onclick=function(){cur=shift(cur,-1);setDt();render()};
+$('next').onclick=function(){cur=shift(cur,1);setDt();render()};
 function render(){
   var end=cur,start=shift(cur,-1);
   $('range').textContent=fd(start)+' ← '+fd(end);
@@ -143,10 +147,10 @@ function render(){
     '<div style="margin:4px 0">'+(esc(o.pu)||'—')+' ← '+(esc(o.dr)||'—')+'</div>'+
     '<div class="k">توصيل '+f2(o.f)+' · رسوم '+f2(c)+(o.nc?' (بدون عمولة)':'')+' · ربحي '+f2(o.f-c)+' · دفع '+f2(o.p)+'</div></div>';
   }).join(''):'<div class="empty">ما في أوردرات هذا الأسبوع</div>';
-  $('list').querySelectorAll('.edt').forEach(function(b){b.onclick=function(){var o=S.orders.filter(function(x){return String(x.id)===b.dataset.id})[0];if(!o)return;editId=o.id;setCo(o.c);$('pu').value=o.pu;$('dr').value=o.dr;$('fee').value=o.f;$('pay').value=o.p;$('nc').checked=!!o.nc;preview();setBtn();window.scrollTo({top:0,behavior:'smooth'})}});
+  $('list').querySelectorAll('.edt').forEach(function(b){b.onclick=function(){var o=S.orders.filter(function(x){return String(x.id)===b.dataset.id})[0];if(!o)return;editId=o.id;setCo(o.c);$('pu').value=o.pu;$('dr').value=o.dr;$('fee').value=o.f;$('pay').value=o.p;$('nc').checked=!!o.nc;editT=o.t;var ow=wEnd(o.t),cw=wEnd(Date.now());setWk(ow===cw?0:ow===shift(cw,-1)?-1:null);preview();setBtn();window.scrollTo({top:0,behavior:'smooth'})}});
   $('list').querySelectorAll('.del').forEach(function(b){b.onclick=function(){if(confirm('حذف الأوردر؟')){S.orders=S.orders.filter(function(o){return String(o.id)!==b.dataset.id});save();render()}}});
 }
-render();setInterval(function(){if(cur>Date.now())render()},60000);
+setDt();render();setInterval(function(){if(cur>Date.now())render()},60000);
 (async function(){try{if(!window.claude||!window.claude.use)return;var u=await window.claude.use('user'),d=await window.claude.use('db');if(!u||!d)return;var id=await u.id();if(!id)return;var ref=d.doc('data/users/'+id+'/main');var snap=await ref.get();if(snap.exists){var v=snap.data()||{},have={};(v.orders||[]).forEach(function(o){have[o.id]=1});var extra=S.orders.filter(function(o){return !have[o.id]});S.orders=(v.orders||[]).concat(extra);S.paid=Object.assign({},S.paid,v.paid||{})}DB=ref;save();render()}catch(e){}})();
 </script>
 </body>
